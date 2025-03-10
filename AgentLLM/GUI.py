@@ -40,6 +40,19 @@ index = VectorStoreIndex.from_documents(
 )
 
 # print(documents)
+template_router = "You’re a LLM that detects intent from user queries."\
+                   "Your special domain is an insurance assistant"\
+                   "Your task is to classify the user's intent based on their query."\
+                   "Below are the possible intents with brief descriptions."\
+                   "Use these to accurately determine the user's goal, and output only the intent topic."\
+                  "- Insurance contract guiding:Questions regarding creating insurance contract"\
+                  "- Product Information: Questions regarding insurance product details, specifications, availability, or compatibility"\
+                  "- Insurance claim: Queries related to making insurance claim, guiding the insurance claim process."\
+                  "- Other: Choose this if the query doesn’t fall into any of the other intents."\
+                  "Question:"
+ 
+
+
 
 template = (
     "Imagine you are a insurance's assistant and "
@@ -110,7 +123,24 @@ for message in st.session_state.messages:  # Display the prior chat messages
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking about your question..."):
-            response = query_engine.query(prompt)
-            st.write(response.response)
-            message = {"role": "assistant", "content": response.response}
+
+            
+            resp = llm.complete( template_router +  prompt)
+            print(resp)
+            if(resp == "Product Information"):
+                response = query_engine.query(prompt)
+                st.write(response)
+                message = {"role": "assistant", "content": response.response}
+            elif(resp == "Insurance claim"):
+                print("Claim insurance")
+
+                st.write(str(resp))
+                message = {"role": "assistant", "content": "Checking your claim"}
+            else:
+              
+                message_t = llm.complete(prompt)
+
+                st.write(str(resp))
+                # print(message_t)
+                message = {"role": "assistant", "content": message_t}
             st.session_state.messages.append(message)  # Add response to message history
