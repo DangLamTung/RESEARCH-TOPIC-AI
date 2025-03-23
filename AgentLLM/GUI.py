@@ -9,9 +9,11 @@ import chromadb
 
 chromadb.api.client.SharedSystemClient.clear_system_cache()
 import os
+import difflib
+
 
 from llama_index.llms.gemini import Gemini
-GOOGLE_API_KEY = ""  # add your GOOGLE API key here
+GOOGLE_API_KEY = "AIzaSyB48j08Xi5rLdjix8NwV6CSe8ae6m0Vp58"  # add your GOOGLE API key here
 os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
 
@@ -86,6 +88,7 @@ if "messages" not in st.session_state.keys():  # Initialize the chat message his
             "content": "Hi, I'm Insurance Support Chatbot!",
         }
     ]
+state = "Other"
 
 
 # # 3.3. Load and index data
@@ -110,37 +113,70 @@ if "messages" not in st.session_state.keys():  # Initialize the chat message his
 # 3.4. Create the chat engine
 # chat_engine = index.as_chat_engine(chat_mode="condense_question", verbose=True)
 
-# 3.5. Prompt for user input and display message history
-if prompt := st.chat_input("Hỏi về sản phẩm PVI insurance"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# # 3.5. Prompt for user input and display message history
+# if prompt := st.chat_input(accept_file="multiple", file_type="txt"):
+#     st.session_state.messages.append({"role": "user", "content": prompt.text})
+# Handle user input (text or file)
+from io import StringIO
 
-for message in st.session_state.messages:  # Display the prior chat messages
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
+text_state = 0
+if prompt := st.chat_input(accept_file="multiple", file_type="txt"):
+    print(prompt.files)
+    if  prompt.files:  # If files are uploaded
+        for files in prompt:
+ 
+            
 
+            # To convert to a string based IO:
+            stringio = StringIO(prompt["files"][0].getvalue().decode("utf-8"))
+            string_data = stringio.read()
+            print(string_data)
+            st.session_state.messages.append({"role": "user", "content": f"📄 **{prompt["files"][0].name}"})
+            # with st.chat_message("user"):
+            #     st.markdown(f"📄 **{files.name}**:\n{file_content}")
+            # print(file_content)
+            text_state = 1
+    else:  # If it's a normal text message
+        st.session_state.messages.append({"role": "user", "content": prompt.text})
+        with st.chat_message("user"):
+            st.markdown(prompt.text)
+            text_state = 0
 # 3.6. Pass query to chat engine and display response
 # If last message is not from assistant, generate a new response
+# đổi thành 3 hàm handler, cho đén khi cờ state đổi thì mới chuyển sang 
+state_com  = ["other", "product wait doc", "claim wait doc", "assist wait doc"]
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking about your question..."):
+            if text_state == 0:    
+                resp = llm.complete( template_router +  prompt.text)
+            else:
+                resp = {"file":0 , "text":  "Insurance contract guiding"}
 
             
-            resp = llm.complete( template_router +  prompt)
-            print(resp)
-            if(resp == "Product Information"):
+            print( prompt.text)
+            if(difflib.SequenceMatcher(None, resp.text,"Product Information").ratio() > 0.9):
                 response = query_engine.query(prompt)
-                st.write(response)
+                st.write(response.response)
+                
+                state = "Product Information"
                 message = {"role": "assistant", "content": response.response}
-            elif(resp == "Insurance claim"):
+            elif(difflib.SequenceMatcher(None, resp.text,"Insurance claim").ratio() > 0.9 ):
                 print("Claim insurance")
-
-                st.write(str(resp))
+                st.write("Xin hãy làm theo các bước sau để được hỗ trọ nhận bảo hiểm")
+                st.write("Thêm hồ sơ bảo hiểm của bạn")
                 message = {"role": "assistant", "content": "Checking your claim"}
+            elif(difflib.SequenceMatcher(None, resp.text,"Insurance contract guiding").ratio() > 0.9 ):
+           
+                st.write("Xin hãy làm theo các bước sau để được hỗ trợ làm hợp đồng bảo hiểm")
+                st.write("Thêm hồ sơ bảo hiểm của bạn")
+                message = {"role": "assistant", "content": "Checking your data"}
             else:
               
-                message_t = llm.complete(prompt)
+                message_t = llm.complete(prompt.text)
 
-                st.write(str(resp))
-                # print(message_t)
-                message = {"role": "assistant", "content": message_t}
+                st.write(message_t.text)
+                print(message_t)
+                message = {"role": "assistant", "content": message_t.text}
             st.session_state.messages.append(message)  # Add response to message history
+
