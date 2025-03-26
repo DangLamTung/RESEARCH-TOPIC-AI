@@ -3,4 +3,6 @@ GK5937 HCMUT
 
 
 Demo
-https://youtu.be/Cu75dpQe98M
+
+[![Video Title](https://img.youtube.com/vi/Cu75dpQe98M/0.jpg)](https://www.youtube.com/watch?v=Cu75dpQe98M)
+
