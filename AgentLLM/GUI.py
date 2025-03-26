@@ -11,8 +11,9 @@ chromadb.api.client.SharedSystemClient.clear_system_cache()
 import os
 import difflib
 
-
+import pandas as pd
 from llama_index.llms.gemini import Gemini
+from auto_detect import *
 GOOGLE_API_KEY = "AIzaSyB48j08Xi5rLdjix8NwV6CSe8ae6m0Vp58"  # add your GOOGLE API key here
 os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
@@ -120,8 +121,9 @@ state = "Other"
 from io import StringIO
 
 text_state = 0
+file_data  =  ""
 if prompt := st.chat_input(accept_file="multiple", file_type="txt"):
-    print(prompt.files)
+    # print(prompt.files)
     if  prompt.files:  # If files are uploaded
         for files in prompt:
  
@@ -129,18 +131,18 @@ if prompt := st.chat_input(accept_file="multiple", file_type="txt"):
 
             # To convert to a string based IO:
             stringio = StringIO(prompt["files"][0].getvalue().decode("utf-8"))
-            string_data = stringio.read()
-            print(string_data)
-            st.session_state.messages.append({"role": "user", "content": f"📄 **{prompt["files"][0].name}"})
+            file_data = stringio.read()
+            # print(string_data)
+            st.session_state.messages.append({"role": "user", "content": "file"})
             # with st.chat_message("user"):
-            #     st.markdown(f"📄 **{files.name}**:\n{file_content}")
+            #     st.markdown(prompt.text)
             # print(file_content)
-            text_state = 1
+
     else:  # If it's a normal text message
         st.session_state.messages.append({"role": "user", "content": prompt.text})
         with st.chat_message("user"):
             st.markdown(prompt.text)
-            text_state = 0
+
 # 3.6. Pass query to chat engine and display response
 # If last message is not from assistant, generate a new response
 # đổi thành 3 hàm handler, cho đén khi cờ state đổi thì mới chuyển sang 
@@ -148,15 +150,12 @@ state_com  = ["other", "product wait doc", "claim wait doc", "assist wait doc"]
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking about your question..."):
-            if text_state == 0:    
-                resp = llm.complete( template_router +  prompt.text)
-            else:
-                resp = {"file":0 , "text":  "Insurance contract guiding"}
-
-            
-            print( prompt.text)
+        
+            resp = llm.complete( template_router +  prompt.text)
+   
+            print(resp)
             if(difflib.SequenceMatcher(None, resp.text,"Product Information").ratio() > 0.9):
-                response = query_engine.query(prompt)
+                response = query_engine.query(prompt.text)
                 st.write(response.response)
                 
                 state = "Product Information"
@@ -169,8 +168,51 @@ if st.session_state.messages[-1]["role"] != "assistant":
             elif(difflib.SequenceMatcher(None, resp.text,"Insurance contract guiding").ratio() > 0.9 ):
            
                 st.write("Xin hãy làm theo các bước sau để được hỗ trợ làm hợp đồng bảo hiểm")
-                st.write("Thêm hồ sơ bảo hiểm của bạn")
+                st.write("Đang đánh giá hồ sơ của bạn")
                 message = {"role": "assistant", "content": "Checking your data"}
+
+                if(len(file_data) > 0):
+                    # print(file_data.strip().split(','))
+                    data_list = []
+                    try:
+                        # for line in file_data:
+                        data  = file_data.strip().split(',')
+                            
+                          # Convert numerical values to appropriate types
+                        age = int(data[0])
+                        sex = data[1]
+                        bmi = float(data[2])
+                        children = int(data[3])
+                        region = data[5]
+
+                        smoker = 1 if data[4].lower() == 'yes' else 0  # Convert to 1/0
+                        
+                        # Store the values in a list
+                        data_list.append([age, sex, bmi, children, smoker, region])
+                        # df = pd.DataFrame.from_dict(data)
+
+                            # Convert to DataFrame
+                        df = pd.DataFrame(data_list, columns=['age', 'sex', 'bmi', 'children', 'smoker', 'region'])
+                        
+                        # Encode categorical columns
+                        df = pd.get_dummies(df, columns=['sex', 'region'], drop_first=False)
+                        
+                        # Ensure all region columns exist
+                        for region_col in ['region_northwest', 'region_southeast', 'region_southwest']:
+                            if region_col not in df.columns:
+                                df[region_col] = 0  # Add missing columns with default value 0
+
+
+
+                        predict_risk = predict_insurance(df)
+                        print(predict_risk[0])
+                        if predict_risk[0] > 30000:
+                            st.write("Hồ sơ của bạn phù hợp với gói bảo hiểm A của chúng tôi, xin làm theo hướng dẫn sau để tiếp tục")
+                        else:
+                            st.write("Hồ sơ của bạn phù hợp với gói bảo hiểm B của chúng tôi, xin làm theo hướng dẫn sau để tiếp tục")
+                    except Exception as e:
+                        print(e)
+                       
             else:
               
                 message_t = llm.complete(prompt.text)

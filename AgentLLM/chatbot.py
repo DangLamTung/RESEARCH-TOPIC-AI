@@ -7,7 +7,7 @@ import chromadb
 
 import os
 
-GOOGLE_API_KEY = ""  # add your GOOGLE API key here
+GOOGLE_API_KEY = "AIzaSyB48j08Xi5rLdjix8NwV6CSe8ae6m0Vp58"  # add your GOOGLE API key here
 os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
 
